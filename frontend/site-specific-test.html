@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Site-Specific Settings Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 10px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .result {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .info {
+        background: #d1ecf1;
+        color: #0c5460;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🌐 Site-Specific Settings Test</h1>
+
+    <p>
+      <strong>Current Site:</strong> <span id="current-site">Loading...</span>
+    </p>
+
+    <h2>Test Site-Specific Settings</h2>
+    <button onclick="checkCurrentSettings()">
+      Check Current Site Settings
+    </button>
+    <button onclick="enableAdBlocking()">
+      Enable Ad Blocking for This Site
+    </button>
+    <button onclick="disableAdBlocking()">
+      Disable Ad Blocking for This Site
+    </button>
+    <button onclick="testTrackerBlocking()">Test Tracker Blocking</button>
+
+    <h2>Test Different Sites</h2>
+    <p>Open these links in new tabs to test site-specific settings:</p>
+    <a href="https://www.google.com" target="_blank">Google.com</a> |
+    <a href="https://www.amazon.com" target="_blank">Amazon.com</a> |
+    <a href="https://www.facebook.com" target="_blank">Facebook.com</a>
+
+    <div id="results"></div>
+
+    <script>
+      function addResult(message, isSuccess = true) {
+        const div = document.createElement("div");
+        div.className = `result ${isSuccess ? "success" : "error"}`;
+        div.textContent = message;
+        document.getElementById("results").appendChild(div);
+      }
+
+      function addInfo(message) {
+        const div = document.createElement("div");
+        div.className = "result info";
+        div.textContent = message;
+        document.getElementById("results").appendChild(div);
+      }
+
+      function checkCurrentSettings() {
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+          chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (response) => {
+            if (response && response.success) {
+              addInfo(
+                `📋 Current site settings: ${JSON.stringify(response.settings)}`
+              );
+              addInfo(`🌐 Site: ${window.location.hostname}`);
+            } else {
+              addResult("❌ No settings response", false);
+            }
+          });
+        } else {
+          addResult("❌ Chrome APIs not available", false);
+        }
+      }
+
+      function enableAdBlocking() {
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+          chrome.runtime.sendMessage(
+            {
+              type: "UPDATE_SETTING",
+              setting: "blockAdTrackers",
+              value: true,
+            },
+            (response) => {
+              if (response && response.success) {
+                addResult("✅ Ad blocking enabled for this site only", true);
+                addInfo(
+                  "🌐 This setting only affects " + window.location.hostname
+                );
+              } else {
+                addResult("❌ Failed to enable ad blocking", false);
+              }
+            }
+          );
+        } else {
+          addResult("❌ Chrome APIs not available", false);
+        }
+      }
+
+      function disableAdBlocking() {
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+          chrome.runtime.sendMessage(
+            {
+              type: "UPDATE_SETTING",
+              setting: "blockAdTrackers",
+              value: false,
+            },
+            (response) => {
+              if (response && response.success) {
+                addResult("✅ Ad blocking disabled for this site only", true);
+                addInfo(
+                  "🌐 This setting only affects " + window.location.hostname
+                );
+              } else {
+                addResult("❌ Failed to disable ad blocking", false);
+              }
+            }
+          );
+        } else {
+          addResult("❌ Chrome APIs not available", false);
+        }
+      }
+
+      function testTrackerBlocking() {
+        const testUrl = "https://www.google-analytics.com/analytics.js";
+        addInfo(`Testing: ${testUrl}`);
+
+        fetch(testUrl)
+          .then(() => {
+            addResult("❌ Request succeeded - NOT blocked", false);
+          })
+          .catch((error) => {
+            if (error.message.includes("DataGuardian")) {
+              addResult("✅ Blocked by DataGuardian!", true);
+            } else {
+              addResult(`❌ Blocked for other reason: ${error.message}`, false);
+            }
+          });
+      }
+
+      // Show current site
+      document.getElementById("current-site").textContent =
+        window.location.hostname;
+
+      // Check if extension is working
+      if (typeof chrome !== "undefined" && chrome.runtime) {
+        addInfo("✅ Extension APIs available");
+      } else {
+        addResult("❌ Extension APIs not available", false);
+      }
+    </script>
+  </body>
+</html>

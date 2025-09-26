@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simple DataGuardian Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 10px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .result {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🛡️ Simple DataGuardian Test</h1>
+
+    <div id="status">Checking extension...</div>
+
+    <button onclick="testTracker()">Test Tracker Blocking</button>
+    <button onclick="checkSettings()">Check Settings</button>
+
+    <div id="results"></div>
+
+    <script>
+      function addResult(message, isSuccess = true) {
+        const div = document.createElement("div");
+        div.className = `result ${isSuccess ? "success" : "error"}`;
+        div.textContent = message;
+        document.getElementById("results").appendChild(div);
+      }
+
+      function testTracker() {
+        const testUrl = "https://www.google-analytics.com/analytics.js";
+        addResult(`Testing: ${testUrl}`);
+
+        fetch(testUrl)
+          .then((response) => {
+            addResult(`❌ Request succeeded - NOT blocked`, false);
+          })
+          .catch((error) => {
+            if (error.message.includes("DataGuardian")) {
+              addResult(`✅ Blocked by DataGuardian!`, true);
+            } else {
+              addResult(`❌ Blocked for other reason: ${error.message}`, false);
+            }
+          });
+      }
+
+      function checkSettings() {
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+          chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (response) => {
+            if (response && response.success) {
+              addResult(
+                `✅ Settings: ${JSON.stringify(response.settings)}`,
+                true
+              );
+            } else {
+              addResult(`❌ No settings response`, false);
+            }
+          });
+        } else {
+          addResult(`❌ Chrome APIs not available`, false);
+        }
+      }
+
+      // Check if extension is working
+      if (typeof chrome !== "undefined" && chrome.runtime) {
+        document.getElementById("status").innerHTML =
+          "✅ Extension APIs available";
+      } else {
+        document.getElementById("status").innerHTML =
+          "❌ Extension APIs not available";
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DataGuardian Test Page</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .test-section {
+        background: #f5f5f5;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 8px;
+        border-left: 4px solid #007bff;
+      }
+      .tracker-test {
+        background: #fff3cd;
+        border-left-color: #ffc107;
+      }
+      .success {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .error {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      .status {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .status.blocked {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+      }
+      .status.allowed {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🛡️ DataGuardian Extension Test Page</h1>
+
+    <div class="test-section">
+      <h2>Extension Status</h2>
+      <p>
+        This page tests the DataGuardian extension's tracker blocking
+        functionality.
+      </p>
+      <div id="extension-status" class="status">
+        Checking extension status...
+      </div>
+    </div>
+
+    <div class="test-section tracker-test">
+      <h2>Tracker Blocking Tests</h2>
+      <p>
+        Click the buttons below to test different types of tracker blocking:
+      </p>
+
+      <div>
+        <button onclick="testAdTracker()">Test Ad Tracker (Google Ads)</button>
+        <button onclick="testAnalyticsTracker()">
+          Test Analytics Tracker (Google Analytics)
+        </button>
+        <button onclick="testSocialTracker()">
+          Test Social Tracker (Facebook)
+        </button>
+      </div>
+
+      <div id="tracker-results"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>Privacy Settings Test</h2>
+      <p>
+        Open the DataGuardian extension popup and toggle the tracker blocking
+        settings, then refresh this page to see the changes.
+      </p>
+      <button onclick="location.reload()">Refresh Page</button>
+      <button onclick="checkTrackerStatus()">
+        Check Current Tracker Status
+      </button>
+      <button onclick="testDirectBlocking()">Test Direct Blocking</button>
+      <button onclick="resetExtensionSettings()">Reset to Defaults</button>
+    </div>
+
+    <div class="test-section">
+      <h2>Instructions</h2>
+      <ol>
+        <li>Install the DataGuardian extension</li>
+        <li>Open the extension popup on this page</li>
+        <li>
+          Toggle the tracker blocking settings (they should default to
+          OFF/Unprotected)
+        </li>
+        <li>Click the test buttons above to see if trackers are blocked</li>
+        <li>Toggle settings ON to see blocking in action</li>
+        <li>Check the browser console for detailed blocking logs</li>
+      </ol>
+    </div>
+
+    <script>
+      // Check if extension is available
+      function checkExtensionStatus() {
+        const statusDiv = document.getElementById("extension-status");
+
+        // Try multiple ways to detect the extension
+        let extensionDetected = false;
+        let detectionMethod = "";
+
+        // Method 1: Check for chrome object
+        if (
+          typeof chrome !== "undefined" &&
+          chrome.runtime &&
+          chrome.runtime.id
+        ) {
+          extensionDetected = true;
+          detectionMethod = "Chrome API detected";
+        }
+
+        // Method 2: Check for extension-specific global variables
+        if (window.DataGuardian || window.dataGuardian) {
+          extensionDetected = true;
+          detectionMethod = "Global variables detected";
+        }
+
+        // Method 3: Check for content script presence
+        if (window.dataGuardianContent || window.DataGuardianContent) {
+          extensionDetected = true;
+          detectionMethod = "Content script detected";
+          console.log("✅ Content script found:", window.dataGuardianContent);
+        }
+
+        // Method 4: Check for extension messages
+        if (
+          typeof chrome !== "undefined" &&
+          chrome.runtime &&
+          chrome.runtime.sendMessage
+        ) {
+          try {
+            chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (response) => {
+              if (chrome.runtime.lastError) {
+                console.log(
+                  "Extension detection attempt:",
+                  chrome.runtime.lastError.message
+                );
+              } else if (response && response.success) {
+                extensionDetected = true;
+                detectionMethod = "Extension communication successful";
+                console.log(
+                  "✅ Extension responded with settings:",
+                  response.settings
+                );
+              }
+            });
+          } catch (e) {
+            console.log("Extension detection error:", e);
+          }
+        }
+
+        if (extensionDetected) {
+          statusDiv.innerHTML = `<span class="success">✅ DataGuardian Extension is active! (${detectionMethod})</span>`;
+          statusDiv.className = "status blocked";
+        } else {
+          statusDiv.innerHTML =
+            '<span class="error">❌ DataGuardian Extension not detected</span>';
+          statusDiv.className = "status allowed";
+
+          // Show debugging info
+          console.log("🔍 Extension Detection Debug:");
+          console.log("- typeof chrome:", typeof chrome);
+          console.log(
+            "- chrome.runtime:",
+            typeof chrome !== "undefined" ? chrome.runtime : "undefined"
+          );
+          console.log(
+            "- chrome.runtime.id:",
+            typeof chrome !== "undefined" && chrome.runtime
+              ? chrome.runtime.id
+              : "undefined"
+          );
+          console.log("- window.DataGuardian:", window.DataGuardian);
+          console.log("- window.dataGuardian:", window.dataGuardian);
+        }
+      }
+
+      // Test functions for different tracker types
+      function testAdTracker() {
+        const resultsDiv = document.getElementById("tracker-results");
+        const testUrl = "https://www.googletagservices.com/tag/js/gpt.js";
+
+        console.log("🧪 Testing Ad Tracker:", testUrl);
+        console.log("📊 Current time:", new Date().toLocaleTimeString());
+
+        resultsDiv.innerHTML +=
+          '<div class="status">Testing Ad Tracker: ' + testUrl + "</div>";
+
+        fetch(testUrl)
+          .then((response) => {
+            console.log("❌ Ad tracker request SUCCEEDED (not blocked)");
+            console.log("📈 Response status:", response.status);
+            console.log("🔗 Response URL:", response.url);
+            resultsDiv.innerHTML +=
+              '<div class="status allowed">❌ Ad tracker request succeeded (not blocked)</div>';
+          })
+          .catch((error) => {
+            console.log("🚫 Ad tracker request FAILED");
+            console.log("📝 Error message:", error.message);
+            console.log("🔍 Error stack:", error.stack);
+
+            if (error.message.includes("DataGuardian")) {
+              console.log("✅ CONFIRMED: Blocked by DataGuardian!");
+              resultsDiv.innerHTML +=
+                '<div class="status blocked">✅ Ad tracker blocked by DataGuardian!</div>';
+            } else {
+              console.log("⚠️ Blocked for other reason (not DataGuardian)");
+              resultsDiv.innerHTML +=
+                '<div class="status allowed">❌ Ad tracker request failed for other reason: ' +
+                error.message +
+                "</div>";
+            }
+          });
+      }
+
+      function testAnalyticsTracker() {
+        const resultsDiv = document.getElementById("tracker-results");
+        const testUrl = "https://www.google-analytics.com/analytics.js";
+
+        console.log("🧪 Testing Analytics Tracker:", testUrl);
+        console.log("📊 Current time:", new Date().toLocaleTimeString());
+
+        resultsDiv.innerHTML +=
+          '<div class="status">Testing Analytics Tracker: ' +
+          testUrl +
+          "</div>";
+
+        fetch(testUrl)
+          .then((response) => {
+            console.log("❌ Analytics tracker request SUCCEEDED (not blocked)");
+            console.log("📈 Response status:", response.status);
+            console.log("🔗 Response URL:", response.url);
+            resultsDiv.innerHTML +=
+              '<div class="status allowed">❌ Analytics tracker request succeeded (not blocked)</div>';
+          })
+          .catch((error) => {
+            console.log("🚫 Analytics tracker request FAILED");
+            console.log("📝 Error message:", error.message);
+            console.log("🔍 Error stack:", error.stack);
+
+            if (error.message.includes("DataGuardian")) {
+              console.log("✅ CONFIRMED: Blocked by DataGuardian!");
+              resultsDiv.innerHTML +=
+                '<div class="status blocked">✅ Analytics tracker blocked by DataGuardian!</div>';
+            } else {
+              console.log("⚠️ Blocked for other reason (not DataGuardian)");
+              resultsDiv.innerHTML +=
+                '<div class="status allowed">❌ Analytics tracker request failed for other reason: ' +
+                error.message +
+                "</div>";
+            }
+          });
+      }
+
+      function testSocialTracker() {
+        const resultsDiv = document.getElementById("tracker-results");
+        const testUrl = "https://connect.facebook.net/en_US/fbevents.js";
+
+        console.log("🧪 Testing Social Tracker:", testUrl);
+        console.log("📊 Current time:", new Date().toLocaleTimeString());
+
+        resultsDiv.innerHTML +=
+          '<div class="status">Testing Social Tracker: ' + testUrl + "</div>";
+
+        fetch(testUrl)
+          .then((response) => {
+            console.log("❌ Social tracker request SUCCEEDED (not blocked)");
+            console.log("📈 Response status:", response.status);
+            console.log("🔗 Response URL:", response.url);
+            resultsDiv.innerHTML +=
+              '<div class="status allowed">❌ Social tracker request succeeded (not blocked)</div>';
+          })
+          .catch((error) => {
+            console.log("🚫 Social tracker request FAILED");
+            console.log("📝 Error message:", error.message);
+            console.log("🔍 Error stack:", error.stack);
+
+            if (error.message.includes("DataGuardian")) {
+              console.log("✅ CONFIRMED: Blocked by DataGuardian!");
+              resultsDiv.innerHTML +=
+                '<div class="status blocked">✅ Social tracker blocked by DataGuardian!</div>';
+            } else {
+              console.log("⚠️ Blocked for other reason (not DataGuardian)");
+              resultsDiv.innerHTML +=
+                '<div class="status allowed">❌ Social tracker request failed for other reason: ' +
+                error.message +
+                "</div>";
+            }
+          });
+      }
+
+      // Check current tracker blocking status
+      function checkTrackerStatus() {
+        console.log("🔍 === Current Tracker Status Check ===");
+        console.log("⏰ Check time:", new Date().toLocaleTimeString());
+
+        // Test all tracker types
+        const testUrls = [
+          {
+            type: "Ad Tracker",
+            url: "https://www.googletagservices.com/tag/js/gpt.js",
+          },
+          {
+            type: "Analytics Tracker",
+            url: "https://www.google-analytics.com/analytics.js",
+          },
+          {
+            type: "Social Tracker",
+            url: "https://connect.facebook.net/en_US/fbevents.js",
+          },
+        ];
+
+        testUrls.forEach((test, index) => {
+          setTimeout(() => {
+            console.log(`🧪 Testing ${test.type}: ${test.url}`);
+            fetch(test.url)
+              .then((response) => {
+                console.log(`❌ ${test.type}: ALLOWED (not blocked)`);
+                console.log(
+                  `📈 Status: ${response.status}, URL: ${response.url}`
+                );
+              })
+              .catch((error) => {
+                if (error.message.includes("DataGuardian")) {
+                  console.log(`✅ ${test.type}: BLOCKED by DataGuardian`);
+                } else {
+                  console.log(
+                    `⚠️ ${test.type}: Blocked for other reason: ${error.message}`
+                  );
+                }
+              });
+          }, index * 1000); // Stagger requests by 1 second
+        });
+
+        // Check extension status
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+          console.log("✅ Extension APIs available");
+          try {
+            chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (response) => {
+              if (response && response.success) {
+                console.log(
+                  "📋 Current extension settings:",
+                  response.settings
+                );
+              } else {
+                console.log("❌ Failed to get extension settings");
+              }
+            });
+          } catch (e) {
+            console.log("❌ Error communicating with extension:", e);
+          }
+        } else {
+          console.log("❌ Extension APIs not available");
+        }
+      }
+
+      // Test direct blocking functionality
+      function testDirectBlocking() {
+        console.log("🧪 === Direct Blocking Test ===");
+        console.log("⏰ Test time:", new Date().toLocaleTimeString());
+
+        // Check if content script is available
+        if (window.dataGuardianContent) {
+          console.log(
+            "✅ Content script detected:",
+            window.dataGuardianContent
+          );
+          console.log(
+            "📊 Blocked requests count:",
+            window.dataGuardianContent.getBlockedCount()
+          );
+          console.log(
+            "📋 Current settings:",
+            window.dataGuardianContent.settings
+          );
+        } else {
+          console.log("❌ Content script not detected");
+        }
+
+        // Test a simple tracker request
+        const testUrl = "https://www.google-analytics.com/analytics.js";
+        console.log("🧪 Testing direct blocking for:", testUrl);
+
+        fetch(testUrl)
+          .then((response) => {
+            console.log("❌ Request SUCCEEDED - not blocked");
+            console.log("📈 Status:", response.status);
+            console.log("🔗 URL:", response.url);
+          })
+          .catch((error) => {
+            console.log("🚫 Request FAILED");
+            console.log("📝 Error:", error.message);
+
+            if (error.message.includes("DataGuardian")) {
+              console.log("✅ CONFIRMED: Blocked by DataGuardian!");
+            } else {
+              console.log("⚠️ Blocked for other reason");
+            }
+          });
+
+        // Check blocked count after request
+        setTimeout(() => {
+          if (window.dataGuardianContent) {
+            console.log(
+              "📊 Blocked requests after test:",
+              window.dataGuardianContent.getBlockedCount()
+            );
+          }
+        }, 2000);
+      }
+
+      // Reset extension settings to defaults
+      function resetExtensionSettings() {
+        console.log("🔄 === Resetting Extension Settings ===");
+        console.log("⏰ Reset time:", new Date().toLocaleTimeString());
+
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+          try {
+            chrome.runtime.sendMessage(
+              { type: "RESET_TO_DEFAULTS" },
+              (response) => {
+                if (response && response.success) {
+                  console.log("✅ Settings reset successfully");
+                  console.log(
+                    "📋 All tracker blocking is now DISABLED (default state)"
+                  );
+                  console.log("💡 Refresh the page to see the changes");
+                } else {
+                  console.log("❌ Failed to reset settings");
+                }
+              }
+            );
+          } catch (e) {
+            console.log("❌ Error resetting settings:", e);
+          }
+        } else {
+          console.log("❌ Extension APIs not available");
+        }
+      }
+
+      // Initialize page
+      document.addEventListener("DOMContentLoaded", function () {
+        checkExtensionStatus();
+
+        // Log page load
+        console.log("🛡️ DataGuardian Test Page Loaded");
+        console.log(
+          "📋 Open the extension popup to test tracker blocking settings"
+        );
+
+        // Comprehensive logging setup
+        console.log("🔍 === DataGuardian Debugging Setup ===");
+        console.log("📊 Current page URL:", window.location.href);
+        console.log("⏰ Page load time:", new Date().toLocaleTimeString());
+        console.log("🌐 User agent:", navigator.userAgent);
+
+        // Check for extension APIs
+        console.log("🔧 Extension API Status:");
+        console.log(
+          "- chrome object:",
+          typeof chrome !== "undefined" ? "✅ Available" : "❌ Not available"
+        );
+        console.log(
+          "- chrome.runtime:",
+          typeof chrome !== "undefined" && chrome.runtime
+            ? "✅ Available"
+            : "❌ Not available"
+        );
+        console.log(
+          "- chrome.storage:",
+          typeof chrome !== "undefined" && chrome.storage
+            ? "✅ Available"
+            : "❌ Not available"
+        );
+        console.log(
+          "- chrome.tabs:",
+          typeof chrome !== "undefined" && chrome.tabs
+            ? "✅ Available"
+            : "❌ Not available"
+        );
+
+        // Monitor network requests
+        console.log("📡 Network monitoring enabled");
+        console.log("💡 Instructions:");
+        console.log("1. Open DataGuardian extension popup");
+        console.log("2. Toggle tracker blocking settings");
+        console.log("3. Click test buttons to see blocking results");
+        console.log("4. Check console for detailed logs");
+        console.log("5. Look for 'DataGuardian' messages in console");
+
+        // Set up periodic status checks
+        setInterval(() => {
+          console.log("⏰ Status check:", new Date().toLocaleTimeString());
+          if (typeof chrome !== "undefined" && chrome.runtime) {
+            console.log("✅ Extension APIs still available");
+          } else {
+            console.log("❌ Extension APIs not available");
+          }
+        }, 30000); // Check every 30 seconds
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Clear DataGuardian Settings</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 10px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .result {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🗑️ Clear DataGuardian Settings</h1>
+
+    <p>
+      This will clear all saved settings and reset to defaults (allow all
+      trackers).
+    </p>
+
+    <button onclick="clearSettings()">Clear All Settings</button>
+    <button onclick="checkSettings()">Check Current Settings</button>
+
+    <div id="results"></div>
+
+    <script>
+      function addResult(message, isSuccess = true) {
+        const div = document.createElement("div");
+        div.className = `result ${isSuccess ? "success" : "error"}`;
+        div.textContent = message;
+        document.getElementById("results").appendChild(div);
+      }
+
+      function clearSettings() {
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+          chrome.runtime.sendMessage(
+            { type: "CLEAR_ALL_SETTINGS" },
+            (response) => {
+              if (response && response.success) {
+                addResult(
+                  "✅ All settings cleared! Extension now uses defaults (allow all)",
+                  true
+                );
+              } else {
+                addResult("❌ Failed to clear settings", false);
+              }
+            }
+          );
+        } else {
+          addResult("❌ Chrome APIs not available", false);
+        }
+      }
+
+      function checkSettings() {
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+          chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (response) => {
+            if (response && response.success) {
+              addResult(
+                `📋 Current settings: ${JSON.stringify(response.settings)}`,
+                true
+              );
+            } else {
+              addResult("❌ No settings response", false);
+            }
+          });
+        } else {
+          addResult("❌ Chrome APIs not available", false);
+        }
+      }
+    </script>
+  </body>
+</html>
